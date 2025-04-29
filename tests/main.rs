@@ -9,8 +9,22 @@ fn test_empty() {
 #[test]
 fn test_drop() {
     let f = FsFixtureBuilder::new().build().unwrap();
-    assert!(f.path().exists());
     let path = f.path().to_path_buf();
+    assert!(path.exists());
+
+    drop(f);
+    assert!(!path.exists());
+}
+
+#[test]
+fn test_drop_after_remove() {
+    let f = FsFixtureBuilder::new().build().unwrap();
+    let path = f.path().to_path_buf();
+    assert!(path.exists());
+
+    f.remove().unwrap();
+    assert!(!path.exists());
+
     drop(f);
     assert!(!path.exists());
 }

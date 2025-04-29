@@ -140,7 +140,7 @@ impl FsFixture {
     }
 
     /// Removes the fixture directory and all of its files
-    pub fn clean(&self) -> Result<(), io::Error> {
+    pub fn remove(&self) -> Result<(), io::Error> {
         fs::remove_dir_all(&self.resolved_temp_dir)
     }
 }
