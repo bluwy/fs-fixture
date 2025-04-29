@@ -73,6 +73,21 @@ fn test_dir_with_files() {
 }
 
 #[test]
+fn test_dir_with_dir_withfiles() {
+    let f = FsFixtureBuilder::new()
+        .dir("foo", |d| {
+            d.file("hello.txt", "hello")
+                .dir("bar", |d| d.file("world.txt", "world"))
+        })
+        .build()
+        .unwrap();
+    assert!(f.path_join("foo").exists());
+    assert!(f.path_join("foo/bar").exists());
+    assert_eq!(f.read_file("foo/hello.txt").unwrap(), "hello");
+    assert_eq!(f.read_file("foo/bar/world.txt").unwrap(), "world");
+}
+
+#[test]
 fn test_files_and_dir_with_files() {
     let f = FsFixtureBuilder::new()
         .dir("foo", |d| {
@@ -91,6 +106,7 @@ fn test_files_and_dir_with_files() {
 fn test_funky_paths() {
     let f = FsFixtureBuilder::new()
         .dir("/dir", |d| d.file("../hello.txt", "hello"))
+        .dir("/dir-slash/", |d| d.file("../hello.txt", "hello"))
         .file("/../file-a.txt", "file-a")
         .file("/./file-b.txt", "file-b")
         .file("foo/../file-c.txt", "file-c")
@@ -98,6 +114,7 @@ fn test_funky_paths() {
         .build()
         .unwrap();
     assert_eq!(f.read_file("dir/hello.txt").unwrap(), "hello");
+    assert_eq!(f.read_file("dir-slash/hello.txt").unwrap(), "hello");
     assert_eq!(f.read_file("file-a.txt").unwrap(), "file-a");
     assert_eq!(f.read_file("file-b.txt").unwrap(), "file-b");
     assert_eq!(f.read_file("foo/file-c.txt").unwrap(), "file-c");

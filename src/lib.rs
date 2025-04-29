@@ -32,17 +32,19 @@ impl FsFixtureBuilder {
         self
     }
 
+    /// Creates a file
     pub fn file(mut self, path: &str, content: &str) -> Self {
         self.files.push((clean_path(path), content.to_string()));
         self
     }
 
+    /// Creates a directory and receives a callback to create more files or directories within it
     pub fn dir(
         mut self,
         path: &str,
         cb: impl FnOnce(FsFixtureDirBuilder) -> FsFixtureDirBuilder,
     ) -> Self {
-        let path = clean_path(path) + "/";
+        let path = ensure_trailing_slash(&clean_path(path));
         let start_files_len = self.files.len();
 
         let builder = FsFixtureDirBuilder::new(&mut self.files, &path);
@@ -90,10 +92,34 @@ impl<'a> FsFixtureDirBuilder<'a> {
         FsFixtureDirBuilder { files, dir }
     }
 
+    /// Creates a file
     pub fn file(self, path: &str, content: &str) -> Self {
         // NOTE: The incoming dir will already have a trailing slash
         let path = self.dir.to_string() + &clean_path(path);
         self.files.push((path, content.to_string()));
+        self
+    }
+
+    /// Creates a directory and receives a callback to create more files or directories within it
+    pub fn dir(
+        self,
+        path: &str,
+        cb: impl FnOnce(FsFixtureDirBuilder) -> FsFixtureDirBuilder,
+    ) -> Self {
+        // NOTE: The incoming dir will already have a trailing slash
+        let path = self.dir.to_string() + &ensure_trailing_slash(&clean_path(path));
+        let start_files_len = self.files.len();
+
+        let builder = FsFixtureDirBuilder::new(self.files, &path);
+        // We're not using the return value, but it allows the builder pattern to look nicer without
+        // a trailing semicolon
+        let _ = cb(builder);
+
+        if self.files.len() == start_files_len {
+            // No new files added, push the directory entry only so it's still created
+            self.files.push((path, "".to_string()));
+        }
+
         self
     }
 }
@@ -175,6 +201,15 @@ fn clean_path(path: &str) -> String {
     }
 
     path
+}
+
+// Maybe investigate not allocating a new string, but this crate isn't performance sensitive in general
+fn ensure_trailing_slash(path: &str) -> String {
+    if path.ends_with("/") {
+        path.to_string()
+    } else {
+        path.to_string() + "/"
+    }
 }
 
 fn get_temp_dir_name() -> String {
