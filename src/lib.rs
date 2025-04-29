@@ -10,7 +10,7 @@ pub struct FsFixtureBuilderOptions {
 impl Default for FsFixtureBuilderOptions {
     fn default() -> Self {
         FsFixtureBuilderOptions {
-            temp_dir: env::temp_dir(),
+            temp_dir: env::temp_dir().canonicalize().unwrap(),
         }
     }
 }
