@@ -15,9 +15,46 @@ impl Default for FsFixtureBuilderOptions {
     }
 }
 
+trait FileTreeBuilder {
+    fn get_files_vec(&mut self) -> &mut Vec<(String, String)>;
+    fn get_prefix(&self) -> String;
+
+    fn add_file(&mut self, path: &str, content: &str) {
+        let full_path = format!("{}{}", self.get_prefix(), clean_path(path));
+        self.get_files_vec().push((full_path, content.to_string()));
+    }
+
+    fn add_dir(&mut self, path: &str, cb: impl FnOnce(FsFixtureDirBuilder) -> FsFixtureDirBuilder) {
+        let dir_path = format!(
+            "{}{}",
+            self.get_prefix(),
+            ensure_trailing_slash(&clean_path(path))
+        );
+        let files = self.get_files_vec();
+        let start_files_len = files.len();
+
+        let builder = FsFixtureDirBuilder::new(files, &dir_path);
+        let _ = cb(builder);
+
+        if files.len() == start_files_len {
+            // No new files added, push the directory entry only so it's still created
+            files.push((dir_path, "".to_string()));
+        }
+    }
+}
+
 pub struct FsFixtureBuilder {
     files: Vec<(String, String)>,
     options: FsFixtureBuilderOptions,
+}
+impl FileTreeBuilder for FsFixtureBuilder {
+    fn get_files_vec(&mut self) -> &mut Vec<(String, String)> {
+        &mut self.files
+    }
+
+    fn get_prefix(&self) -> String {
+        "".to_string()
+    }
 }
 impl FsFixtureBuilder {
     pub fn new() -> Self {
@@ -34,7 +71,7 @@ impl FsFixtureBuilder {
 
     /// Creates a file
     pub fn file(mut self, path: &str, content: &str) -> Self {
-        self.files.push((clean_path(path), content.to_string()));
+        self.add_file(path, content);
         self
     }
 
@@ -44,19 +81,7 @@ impl FsFixtureBuilder {
         path: &str,
         cb: impl FnOnce(FsFixtureDirBuilder) -> FsFixtureDirBuilder,
     ) -> Self {
-        let path = ensure_trailing_slash(&clean_path(path));
-        let start_files_len = self.files.len();
-
-        let builder = FsFixtureDirBuilder::new(&mut self.files, &path);
-        // We're not using the return value, but it allows the builder pattern to look nicer without
-        // a trailing semicolon
-        let _ = cb(builder);
-
-        if self.files.len() == start_files_len {
-            // No new files added, push the directory entry only so it's still created
-            self.files.push((path, "".to_string()));
-        }
-
+        self.add_dir(path, cb);
         self
     }
 
@@ -87,39 +112,33 @@ pub struct FsFixtureDirBuilder<'a> {
     files: &'a mut Vec<(String, String)>,
     dir: &'a str,
 }
+impl<'a> FileTreeBuilder for FsFixtureDirBuilder<'a> {
+    fn get_files_vec(&mut self) -> &mut Vec<(String, String)> {
+        self.files
+    }
+
+    fn get_prefix(&self) -> String {
+        self.dir.to_string()
+    }
+}
 impl<'a> FsFixtureDirBuilder<'a> {
     fn new(files: &'a mut Vec<(String, String)>, dir: &'a str) -> Self {
         FsFixtureDirBuilder { files, dir }
     }
 
     /// Creates a file
-    pub fn file(self, path: &str, content: &str) -> Self {
-        // NOTE: The incoming dir will already have a trailing slash
-        let path = self.dir.to_string() + &clean_path(path);
-        self.files.push((path, content.to_string()));
+    pub fn file(mut self, path: &str, content: &str) -> Self {
+        self.add_file(path, content);
         self
     }
 
     /// Creates a directory and receives a callback to create more files or directories within it
     pub fn dir(
-        self,
+        mut self,
         path: &str,
         cb: impl FnOnce(FsFixtureDirBuilder) -> FsFixtureDirBuilder,
     ) -> Self {
-        // NOTE: The incoming dir will already have a trailing slash
-        let path = self.dir.to_string() + &ensure_trailing_slash(&clean_path(path));
-        let start_files_len = self.files.len();
-
-        let builder = FsFixtureDirBuilder::new(self.files, &path);
-        // We're not using the return value, but it allows the builder pattern to look nicer without
-        // a trailing semicolon
-        let _ = cb(builder);
-
-        if self.files.len() == start_files_len {
-            // No new files added, push the directory entry only so it's still created
-            self.files.push((path, "".to_string()));
-        }
-
+        self.add_dir(path, cb);
         self
     }
 }
