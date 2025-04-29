@@ -51,12 +51,7 @@ fn test_nested_file() {
 fn test_dir() {
     let f = FsFixtureBuilder::new().dir("foo", |d| d).build().unwrap();
     assert!(f.path_join("foo").exists());
-}
-
-#[test]
-fn test_dir_alternative() {
-    let f = FsFixtureBuilder::new().file("foo/", "").build().unwrap();
-    assert!(f.path_join("foo").exists());
+    assert!(f.path_join("foo").is_dir());
 }
 
 #[test]
@@ -145,4 +140,24 @@ fn test_file_utils() {
     assert_eq!(f.read_file("bar.txt").unwrap(), "bar");
     f.remove_file("foo.txt").unwrap();
     assert!(!f.exists("foo.txt"));
+}
+
+#[test]
+fn test_symlink_file() {
+    let f = FsFixtureBuilder::new()
+        .file("foo.txt", "bar")
+        .symlink_file("bar.txt", "foo.txt")
+        .build()
+        .unwrap();
+    assert_eq!(f.read_file("bar.txt").unwrap(), "bar");
+}
+
+#[test]
+fn test_symlink_dir() {
+    let f = FsFixtureBuilder::new()
+        .dir("foo", |d| d.file("bar.txt", "baz"))
+        .symlink_dir("bar", "foo")
+        .build()
+        .unwrap();
+    assert_eq!(f.read_file("bar/bar.txt").unwrap(), "baz");
 }

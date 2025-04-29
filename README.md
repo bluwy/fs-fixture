@@ -16,6 +16,8 @@ fn main() {
         .dir("dir", |d| {
             d.file("file.txt", "...")
         })
+        .symlink_file("symlink.txt", "file.txt")
+        .symlink_dir("symlink_dir", "dir")
         .build()
         .unwrap(); // Handle any filesystem errors that may occur if needed
 

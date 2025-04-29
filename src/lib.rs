@@ -15,40 +15,60 @@ impl Default for FsFixtureBuilderOptions {
     }
 }
 
+enum FileValue {
+    File(String),
+    Dir,
+    SymlinkFile(String),
+    SymlinkDir(String),
+}
+
 trait FileTreeBuilder {
-    fn get_files_vec(&mut self) -> &mut Vec<(String, String)>;
+    fn get_files_vec(&mut self) -> &mut Vec<(String, FileValue)>;
     fn get_prefix(&self) -> String;
 
+    fn get_path(&self, path: &str) -> String {
+        format!("{}{}", self.get_prefix(), &clean_path(path))
+    }
+
     fn add_file(&mut self, path: &str, content: &str) {
-        let full_path = format!("{}{}", self.get_prefix(), clean_path(path));
-        self.get_files_vec().push((full_path, content.to_string()));
+        let path = self.get_path(path);
+        self.get_files_vec()
+            .push((path, FileValue::File(content.to_string())));
     }
 
     fn add_dir(&mut self, path: &str, cb: impl FnOnce(FsFixtureDirBuilder) -> FsFixtureDirBuilder) {
-        let dir_path = format!(
-            "{}{}",
-            self.get_prefix(),
-            ensure_trailing_slash(&clean_path(path))
-        );
+        let path = self.get_path(path);
         let files = self.get_files_vec();
         let start_files_len = files.len();
 
-        let builder = FsFixtureDirBuilder::new(files, &dir_path);
+        let builder = FsFixtureDirBuilder::new(files, &path);
         let _ = cb(builder);
 
         if files.len() == start_files_len {
             // No new files added, push the directory entry only so it's still created
-            files.push((dir_path, "".to_string()));
+            files.push((path, FileValue::Dir));
         }
+    }
+
+    fn add_symlink_file(&mut self, path: &str, target: &str) {
+        let path = self.get_path(path);
+        self.get_files_vec()
+            .push((path, FileValue::SymlinkFile(target.to_string())));
+    }
+
+    fn add_symlink_dir(&mut self, path: &str, target: &str) {
+        let dir_path = self.get_path(path);
+        self.get_files_vec()
+            .push((dir_path, FileValue::SymlinkDir(target.to_string())));
     }
 }
 
 pub struct FsFixtureBuilder {
-    files: Vec<(String, String)>,
+    files: Vec<(String, FileValue)>,
     options: FsFixtureBuilderOptions,
 }
 impl FileTreeBuilder for FsFixtureBuilder {
-    fn get_files_vec(&mut self) -> &mut Vec<(String, String)> {
+    fn get_files_vec(&mut self) -> &mut Vec<(String, FileValue)> {
         &mut self.files
     }
 
@@ -85,6 +105,18 @@ impl FsFixtureBuilder {
         self
     }
 
+    /// Creates a symlink to a file
+    pub fn symlink_file(mut self, path: &str, target: &str) -> Self {
+        self.add_symlink_file(path, target);
+        self
+    }
+
+    /// Creates a symlink to a directory
+    pub fn symlink_dir(mut self, path: &str, target: &str) -> Self {
+        self.add_symlink_dir(path, target);
+        self
+    }
+
     pub fn build(self) -> io::Result<FsFixture> {
         let temp_dir = get_temp_dir_name();
         let resolved_temp_dir = self.options.temp_dir.join(temp_dir);
@@ -93,13 +125,26 @@ impl FsFixtureBuilder {
             // If there's no files, we should still create the directory
             fs::create_dir_all(&resolved_temp_dir)?;
         } else {
-            for (path, content) in self.files {
+            for (path, value) in self.files {
                 let full_path = resolved_temp_dir.join(&path);
-                if path.ends_with("/") {
-                    fs::create_dir_all(full_path)?;
-                } else {
-                    fs::create_dir_all(full_path.parent().unwrap())?;
-                    fs::write(full_path, content)?;
+                match value {
+                    FileValue::File(content) => {
+                        fs::create_dir_all(full_path.parent().unwrap())?;
+                        fs::write(full_path, content)?;
+                    }
+                    FileValue::Dir => {
+                        fs::create_dir_all(full_path)?;
+                    }
+                    FileValue::SymlinkFile(target) => {
+                        let target = resolved_temp_dir.join(&target);
+                        fs::create_dir_all(full_path.parent().unwrap())?;
+                        symlink_file(&target, &full_path)?;
+                    }
+                    FileValue::SymlinkDir(target) => {
+                        let target = resolved_temp_dir.join(&target);
+                        fs::create_dir_all(full_path.parent().unwrap())?;
+                        symlink_dir(&target, &full_path)?;
+                    }
                 }
             }
         }
@@ -109,20 +154,20 @@ impl FsFixtureBuilder {
 }
 
 pub struct FsFixtureDirBuilder<'a> {
-    files: &'a mut Vec<(String, String)>,
+    files: &'a mut Vec<(String, FileValue)>,
     dir: &'a str,
 }
 impl<'a> FileTreeBuilder for FsFixtureDirBuilder<'a> {
-    fn get_files_vec(&mut self) -> &mut Vec<(String, String)> {
+    fn get_files_vec(&mut self) -> &mut Vec<(String, FileValue)> {
         self.files
     }
 
     fn get_prefix(&self) -> String {
-        self.dir.to_string()
+        format!("{}/", self.dir)
     }
 }
 impl<'a> FsFixtureDirBuilder<'a> {
-    fn new(files: &'a mut Vec<(String, String)>, dir: &'a str) -> Self {
+    fn new(files: &'a mut Vec<(String, FileValue)>, dir: &'a str) -> Self {
         FsFixtureDirBuilder { files, dir }
     }
 
@@ -139,6 +184,18 @@ impl<'a> FsFixtureDirBuilder<'a> {
         cb: impl FnOnce(FsFixtureDirBuilder) -> FsFixtureDirBuilder,
     ) -> Self {
         self.add_dir(path, cb);
+        self
+    }
+
+    /// Creates a symlink to a file
+    pub fn symlink_file(mut self, path: &str, target: &str) -> Self {
+        self.add_symlink_file(path, target);
+        self
+    }
+
+    /// Creates a symlink to a directory
+    pub fn symlink_dir(mut self, path: &str, target: &str) -> Self {
+        self.add_symlink_dir(path, target);
         self
     }
 }
@@ -219,21 +276,42 @@ fn clean_path(path: &str) -> String {
         path = path[1..].to_string();
     }
 
-    path
-}
-
-// Maybe investigate not allocating a new string, but this crate isn't performance sensitive in general
-fn ensure_trailing_slash(path: &str) -> String {
-    if path.ends_with("/") {
-        path.to_string()
-    } else {
-        path.to_string() + "/"
+    while path.ends_with('/') {
+        path = path[0..path.len() - 1].to_string();
     }
+
+    path
 }
 
 fn get_temp_dir_name() -> String {
     let random_id: String = iter::repeat_with(fastrand::alphanumeric).take(8).collect();
     format!("fs-fixture-{}", random_id)
+}
+
+fn symlink_file(original: &Path, link: &Path) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+        symlink(original, link)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::symlink_file;
+        symlink_file(original, link)
+    }
+}
+
+fn symlink_dir(original: &Path, link: &Path) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+        symlink(original, link)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::symlink_dir;
+        symlink_dir(original, link)
+    }
 }
 
 #[cfg(test)]
@@ -252,12 +330,12 @@ mod tests {
         assert_eq!(clean_path("/dir/foo.txt"), "dir/foo.txt");
         assert_eq!(clean_path("/dir/../foo.txt"), "dir/foo.txt");
         assert_eq!(clean_path("/dir/./foo.txt"), "dir/foo.txt");
-        assert_eq!(clean_path("dir/"), "dir/");
-        assert_eq!(clean_path("/dir/"), "dir/");
-        assert_eq!(clean_path("/dir/../"), "dir/");
-        assert_eq!(clean_path("dir/./"), "dir/");
-        assert_eq!(clean_path("./dir/"), "dir/");
-        assert_eq!(clean_path("../dir/"), "dir/");
+        assert_eq!(clean_path("dir/"), "dir");
+        assert_eq!(clean_path("/dir/"), "dir");
+        assert_eq!(clean_path("/dir/../"), "dir");
+        assert_eq!(clean_path("dir/./"), "dir");
+        assert_eq!(clean_path("./dir/"), "dir");
+        assert_eq!(clean_path("../dir/"), "dir");
         assert_eq!(clean_path("dir///////foo//////bar"), "dir/foo/bar");
         assert_eq!(clean_path("dir/.././foo/.../bar"), "dir/foo/.../bar");
     }
