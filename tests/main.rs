@@ -161,3 +161,23 @@ fn test_symlink_dir() {
         .unwrap();
     assert_eq!(f.read_file("bar/bar.txt").unwrap(), "baz");
 }
+
+#[test]
+fn test_symlink_file_nested() {
+    let f = FsFixtureBuilder::new()
+        .file("foo.txt", "bar")
+        .dir("baz", |d| d.symlink_file("bar.txt", "foo.txt"))
+        .build()
+        .unwrap();
+    assert_eq!(f.read_file("baz/bar.txt").unwrap(), "bar");
+}
+
+#[test]
+fn test_symlink_dir_nested() {
+    let f = FsFixtureBuilder::new()
+        .dir("foo", |d| d.file("bar.txt", "baz"))
+        .dir("baz", |d| d.symlink_dir("bar", "foo"))
+        .build()
+        .unwrap();
+    assert_eq!(f.read_file("baz/bar/bar.txt").unwrap(), "baz");
+}
