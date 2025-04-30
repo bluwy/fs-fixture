@@ -3,9 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[non_exhaustive]
 pub struct FsFixtureBuilderOptions {
-    temp_dir: PathBuf,
+    pub temp_dir: PathBuf,
 }
 impl Default for FsFixtureBuilderOptions {
     fn default() -> Self {
@@ -84,7 +83,7 @@ impl FsFixtureBuilder {
         }
     }
 
-    pub fn with_options(mut self, options: FsFixtureBuilderOptions) -> Self {
+    pub fn options(mut self, options: FsFixtureBuilderOptions) -> Self {
         self.options = options;
         self
     }

@@ -7,19 +7,42 @@ The library was originally adapted from https://github.com/privatenumber/fs-fixt
 ## Usage
 
 ```rust
-use fs_fixture::FsFixtureBuilder;
+use fs_fixture::{FsFixtureBuilder, FsFixtureBuilderOptions};
 
 fn main() {
     let fixture = FsFixtureBuilder::new()
+
+        // Optional: Pass options to the fixture
+        .options(FsFixtureBuilderOptions {
+            // A custom temp directory to write the fixture to. Defaults to OS temp directory.
+            temp_dir: PathBuf::from("/custom/temp/directory"),
+            ..Default::default()
+        })
+
+        // Create a file
         .file("file.txt", "...")
+
+        // Create a file inside a directory
         .file("nested/file.txt", "...")
+
+        // Create a directory that contains more files or directories
+        // (Useful for grouping under a shared directory)
         .dir("dir", |d| {
+            // Supports similar `file()`, `dir()`, etc APIs
             d.file("file.txt", "...")
         })
-        .symlink_file("symlink.txt", "file.txt")
-        .symlink_dir("symlink_dir", "dir")
+
+        // Create a file that symlinks to a target file (e.g. "file.txt" and should exist beforehand)
+        .symlink_file("symlink-file.txt", "file.txt")
+
+        // Create a directory that symlinks to a target directory (e.g. "dir" and should exist beforehand)
+        .symlink_dir("symlink-dir", "dir")
+
+        // Write out all the files and directories for the fixture
         .build()
-        .unwrap(); // Handle any filesystem errors that may occur if needed
+
+        // Handle any filesystem errors that may occur if needed
+        .unwrap();
 
     // The absolute path to the fixture
     fixture.path();

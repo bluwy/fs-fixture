@@ -1,4 +1,6 @@
-use fs_fixture::FsFixtureBuilder;
+use std::{env, fs};
+
+use fs_fixture::{FsFixtureBuilder, FsFixtureBuilderOptions};
 
 #[test]
 fn test_empty() {
@@ -27,6 +29,22 @@ fn test_drop_after_remove() {
 
     drop(f);
     assert!(!path.exists());
+}
+
+#[test]
+fn test_options_temp_dir() {
+    let nested_temp_dir = env::temp_dir().canonicalize().unwrap().join("nested");
+
+    let f = FsFixtureBuilder::new()
+        .options(FsFixtureBuilderOptions {
+            temp_dir: nested_temp_dir.clone(),
+            ..Default::default()
+        })
+        .build()
+        .unwrap();
+    assert_eq!(f.path().parent().unwrap(), nested_temp_dir);
+
+    fs::remove_dir_all(nested_temp_dir).unwrap();
 }
 
 #[test]
