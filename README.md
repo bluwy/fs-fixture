@@ -64,6 +64,8 @@ fn main() {
 }
 ```
 
+Note that the string paths only supports relative paths. Absolute paths or paths with `../` are not supported and will be internally removed and interpreted as relative paths instead. It's recommended to follow the above example convention when specifying paths.
+
 ## Sponsors
 
 <p align="center">

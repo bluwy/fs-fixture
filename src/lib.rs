@@ -4,6 +4,8 @@ use std::{
 };
 
 pub struct FsFixtureBuilderOptions {
+    /// A custom temp directory to write fixtures to. Defaults to `env::temp_dir()`.
+    /// Note that the fixture will be its own directory inside the temp directory.
     pub temp_dir: PathBuf,
 }
 impl Default for FsFixtureBuilderOptions {

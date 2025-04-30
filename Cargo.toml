@@ -5,8 +5,10 @@ edition = "2024"
 description = "Create filesystem fixtures fluently"
 license = "MIT"
 authors = ["Bjorn Lu"]
+categories = ["development-tools"]
 keywords = ["filesystem", "temp", "fixture"]
 repository = "https://github.com/bluwy/fs-fixture"
+include = ["/src"]
 
 [dependencies]
 fastrand = "2.3.0"
