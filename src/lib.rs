@@ -1,4 +1,4 @@
-#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 use std::{
     env, fs, io, iter,
@@ -80,6 +80,7 @@ impl FileTreeBuilder for FsFixtureBuilder {
     }
 }
 impl FsFixtureBuilder {
+    #[expect(clippy::new_without_default)]
     pub fn new() -> Self {
         FsFixtureBuilder {
             files: vec![],
@@ -228,7 +229,7 @@ impl FsFixture {
 
     /// Writes to a file in the fixture directory
     pub fn write_file(&self, path: &str, content: &str) -> io::Result<()> {
-        let full_path = self.resolved_temp_dir.join(&path);
+        let full_path = self.resolved_temp_dir.join(path);
         fs::create_dir_all(full_path.parent().unwrap())?;
         fs::write(full_path, content)?;
         Ok(())

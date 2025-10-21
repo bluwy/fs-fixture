@@ -6,7 +6,7 @@ The library was originally adapted from <https://github.com/privatenumber/fs-fix
 
 ## Usage
 
-```rust
+```rs
 use fs_fixture::{FsFixtureBuilder, FsFixtureBuilderOptions};
 
 fn main() {
