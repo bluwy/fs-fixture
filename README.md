@@ -2,7 +2,7 @@
 
 Create filesystem fixtures fluently. Useful for testing with files and directories. Supports creating fixtures in the OS temp directory and clean up when dropped.
 
-The library was originally adapted from https://github.com/privatenumber/fs-fixture.
+The library was originally adapted from <https://github.com/privatenumber/fs-fixture>.
 
 ## Usage
 

@@ -1,3 +1,5 @@
+#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
+
 use std::{
     env, fs, io, iter,
     path::{Path, PathBuf},
