@@ -1,4 +1,5 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
+#![warn(clippy::pedantic)]
 
 use std::{
     env, fs, io, iter,
@@ -76,11 +77,12 @@ impl FileTreeBuilder for FsFixtureBuilder {
     }
 
     fn get_prefix(&self) -> String {
-        "".to_string()
+        String::new()
     }
 }
 impl FsFixtureBuilder {
     #[expect(clippy::new_without_default)]
+    #[must_use]
     pub fn new() -> Self {
         FsFixtureBuilder {
             files: vec![],
@@ -88,18 +90,21 @@ impl FsFixtureBuilder {
         }
     }
 
+    #[must_use]
     pub fn options(mut self, options: FsFixtureBuilderOptions) -> Self {
         self.options = options;
         self
     }
 
     /// Creates a file
+    #[must_use]
     pub fn file(mut self, path: &str, content: &str) -> Self {
         self.add_file(path, content);
         self
     }
 
     /// Creates a directory and receives a callback to create more files or directories within it
+    #[must_use]
     pub fn dir(
         mut self,
         path: &str,
@@ -110,17 +115,24 @@ impl FsFixtureBuilder {
     }
 
     /// Creates a symlink to a file
+    #[must_use]
     pub fn symlink_file(mut self, path: &str, target: &str) -> Self {
         self.add_symlink_file(path, target);
         self
     }
 
     /// Creates a symlink to a directory
+    #[must_use]
     pub fn symlink_dir(mut self, path: &str, target: &str) -> Self {
         self.add_symlink_dir(path, target);
         self
     }
 
+    /// Writes the fixture files and directories in a temporary directory
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the creation of any files or directories fails.
     pub fn build(self) -> io::Result<FsFixture> {
         let temp_dir = get_temp_dir_name();
         let resolved_temp_dir = self.options.temp_dir.join(temp_dir);
@@ -133,7 +145,9 @@ impl FsFixtureBuilder {
                 let full_path = resolved_temp_dir.join(&path);
                 match value {
                     FileValue::File(content) => {
-                        fs::create_dir_all(full_path.parent().unwrap())?;
+                        if let Some(parent) = full_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
                         fs::write(full_path, content)?;
                     }
                     FileValue::Dir => {
@@ -141,12 +155,16 @@ impl FsFixtureBuilder {
                     }
                     FileValue::SymlinkFile(target) => {
                         let target = resolved_temp_dir.join(&target);
-                        fs::create_dir_all(full_path.parent().unwrap())?;
+                        if let Some(parent) = full_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
                         symlink_file(&target, &full_path)?;
                     }
                     FileValue::SymlinkDir(target) => {
                         let target = resolved_temp_dir.join(&target);
-                        fs::create_dir_all(full_path.parent().unwrap())?;
+                        if let Some(parent) = full_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
                         symlink_dir(&target, &full_path)?;
                     }
                 }
@@ -161,7 +179,7 @@ pub struct FsFixtureDirBuilder<'a> {
     files: &'a mut Vec<(String, FileValue)>,
     dir: &'a str,
 }
-impl<'a> FileTreeBuilder for FsFixtureDirBuilder<'a> {
+impl FileTreeBuilder for FsFixtureDirBuilder<'_> {
     fn get_files_vec(&mut self) -> &mut Vec<(String, FileValue)> {
         self.files
     }
@@ -176,12 +194,14 @@ impl<'a> FsFixtureDirBuilder<'a> {
     }
 
     /// Creates a file
+    #[must_use]
     pub fn file(mut self, path: &str, content: &str) -> Self {
         self.add_file(path, content);
         self
     }
 
     /// Creates a directory and receives a callback to create more files or directories within it
+    #[must_use]
     pub fn dir(
         mut self,
         path: &str,
@@ -192,12 +212,14 @@ impl<'a> FsFixtureDirBuilder<'a> {
     }
 
     /// Creates a symlink to a file
+    #[must_use]
     pub fn symlink_file(mut self, path: &str, target: &str) -> Self {
         self.add_symlink_file(path, target);
         self
     }
 
     /// Creates a symlink to a directory
+    #[must_use]
     pub fn symlink_dir(mut self, path: &str, target: &str) -> Self {
         self.add_symlink_dir(path, target);
         self
@@ -213,39 +235,60 @@ impl FsFixture {
     }
 
     /// Returns the path to the fixture directory
+    #[must_use]
     pub fn path(&self) -> &Path {
         &self.resolved_temp_dir
     }
 
     /// Returns the path to a file in the fixture directory
+    #[must_use]
     pub fn path_join(&self, path: &str) -> PathBuf {
         self.resolved_temp_dir.join(clean_path(path))
     }
 
     /// Checks if a file exists in the fixture directory
+    #[must_use]
     pub fn exists(&self, path: &str) -> bool {
         self.resolved_temp_dir.join(path).exists()
     }
 
     /// Writes to a file in the fixture directory
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the file could not be written.
     pub fn write_file(&self, path: &str, content: &str) -> io::Result<()> {
         let full_path = self.resolved_temp_dir.join(path);
-        fs::create_dir_all(full_path.parent().unwrap())?;
+        if let Some(parent) = full_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         fs::write(full_path, content)?;
         Ok(())
     }
 
     /// Reads a file from the fixture directory
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the file could not be read.
     pub fn read_file(&self, path: &str) -> io::Result<String> {
         fs::read_to_string(self.resolved_temp_dir.join(path))
     }
 
     /// Removes a file from the fixture directory
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the file could not be removed.
     pub fn remove_file(&self, path: &str) -> io::Result<()> {
         fs::remove_file(self.resolved_temp_dir.join(path))
     }
 
     /// Removes the fixture directory and all of its files
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the fixture directory could not be removed.
     pub fn remove(&self) -> Result<(), io::Error> {
         fs::remove_dir_all(&self.resolved_temp_dir)
     }
@@ -289,7 +332,7 @@ fn clean_path(path: &str) -> String {
 
 fn get_temp_dir_name() -> String {
     let random_id: String = iter::repeat_with(fastrand::alphanumeric).take(8).collect();
-    format!("fs-fixture-{}", random_id)
+    format!("fs-fixture-{random_id}")
 }
 
 fn symlink_file(original: &Path, link: &Path) -> io::Result<()> {
