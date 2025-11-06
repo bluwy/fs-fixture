@@ -28,7 +28,7 @@ enum FileValue {
 
 trait FileTreeBuilder {
     fn get_files_vec(&mut self) -> &mut Vec<(String, FileValue)>;
-    fn get_prefix(&self) -> String;
+    fn get_prefix(&self) -> &str;
 
     fn get_path(&self, path: &str) -> String {
         format!("{}{}", self.get_prefix(), &clean_path(path))
@@ -76,8 +76,9 @@ impl FileTreeBuilder for FsFixtureBuilder {
         &mut self.files
     }
 
-    fn get_prefix(&self) -> String {
-        String::new()
+    #[expect(clippy::unnecessary_literal_bound)]
+    fn get_prefix(&self) -> &str {
+        ""
     }
 }
 impl FsFixtureBuilder {
@@ -177,20 +178,23 @@ impl FsFixtureBuilder {
 
 pub struct FsFixtureDirBuilder<'a> {
     files: &'a mut Vec<(String, FileValue)>,
-    dir: &'a str,
+    prefix: String,
 }
 impl FileTreeBuilder for FsFixtureDirBuilder<'_> {
     fn get_files_vec(&mut self) -> &mut Vec<(String, FileValue)> {
         self.files
     }
 
-    fn get_prefix(&self) -> String {
-        format!("{}/", self.dir)
+    fn get_prefix(&self) -> &str {
+        &self.prefix
     }
 }
 impl<'a> FsFixtureDirBuilder<'a> {
     fn new(files: &'a mut Vec<(String, FileValue)>, dir: &'a str) -> Self {
-        FsFixtureDirBuilder { files, dir }
+        FsFixtureDirBuilder {
+            files,
+            prefix: format!("{dir}/"),
+        }
     }
 
     /// Creates a file
@@ -302,7 +306,7 @@ impl Drop for FsFixture {
 /// Specified paths should only be allowed to look like this:
 /// - "file.txt"
 /// - "dir/file.txt"
-/// - "dir/"
+/// - "dir"
 ///
 /// Trim any "./" so it's easier to handle paths, and "../" to prevent
 /// going outside of the fixture directory
