@@ -38,7 +38,6 @@ fn test_options_temp_dir() {
     let f = FsFixtureBuilder::new()
         .options(FsFixtureBuilderOptions {
             temp_dir: nested_temp_dir.clone(),
-            ..Default::default()
         })
         .build()
         .unwrap();
