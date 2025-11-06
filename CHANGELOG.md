@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2025-11-06)
 
 - BREAKING: All paths passed to API methods in `FsFixture` are now cleaned the same way as `FsFixtureBuilder`
 - BREAKING: Fluent API methods in `FsFixtureBuilder` are marked with `#[must_use]`
