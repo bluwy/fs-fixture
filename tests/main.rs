@@ -132,6 +132,12 @@ fn test_funky_paths() {
     assert_eq!(f.read_file("file-b.txt").unwrap(), "file-b");
     assert_eq!(f.read_file("foo/file-c.txt").unwrap(), "file-c");
     assert_eq!(f.read_file("foo/file-d.txt").unwrap(), "file-d");
+    // Other APIs
+    assert!(f.exists("/dir/../hello.txt"));
+    assert!(f.write_file("/dir/../hello.txt", "new-hello").is_ok());
+    assert_eq!(f.read_file("/dir/../hello.txt").unwrap(), "new-hello");
+    assert!(f.remove_file("/dir/../hello.txt").is_ok());
+    assert!(!f.exists("/dir/../hello.txt"));
 }
 
 #[test]

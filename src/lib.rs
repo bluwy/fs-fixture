@@ -57,13 +57,13 @@ trait FileTreeBuilder {
     fn add_symlink_file(&mut self, path: &str, target: &str) {
         let path = self.get_path(path);
         self.get_files_vec()
-            .push((path, FileValue::SymlinkFile(target.to_string())));
+            .push((path, FileValue::SymlinkFile(clean_path(target))));
     }
 
     fn add_symlink_dir(&mut self, path: &str, target: &str) {
         let dir_path = self.get_path(path);
         self.get_files_vec()
-            .push((dir_path, FileValue::SymlinkDir(target.to_string())));
+            .push((dir_path, FileValue::SymlinkDir(clean_path(target))));
     }
 }
 
@@ -249,7 +249,7 @@ impl FsFixture {
     /// Checks if a file exists in the fixture directory
     #[must_use]
     pub fn exists(&self, path: &str) -> bool {
-        self.resolved_temp_dir.join(path).exists()
+        self.path_join(path).exists()
     }
 
     /// Writes to a file in the fixture directory
@@ -258,7 +258,7 @@ impl FsFixture {
     ///
     /// This function will return an error if the file could not be written.
     pub fn write_file(&self, path: &str, content: &str) -> io::Result<()> {
-        let full_path = self.resolved_temp_dir.join(path);
+        let full_path = self.path_join(path);
         if let Some(parent) = full_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -272,7 +272,7 @@ impl FsFixture {
     ///
     /// This function will return an error if the file could not be read.
     pub fn read_file(&self, path: &str) -> io::Result<String> {
-        fs::read_to_string(self.resolved_temp_dir.join(path))
+        fs::read_to_string(self.path_join(path))
     }
 
     /// Removes a file from the fixture directory
@@ -281,7 +281,7 @@ impl FsFixture {
     ///
     /// This function will return an error if the file could not be removed.
     pub fn remove_file(&self, path: &str) -> io::Result<()> {
-        fs::remove_file(self.resolved_temp_dir.join(path))
+        fs::remove_file(self.path_join(path))
     }
 
     /// Removes the fixture directory and all of its files
